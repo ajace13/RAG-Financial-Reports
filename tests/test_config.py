@@ -92,7 +92,7 @@ def test_ollama_defaults_and_overrides(tmp_path: Path, monkeypatch: pytest.Monke
     assert settings.ollama_model is None
     assert settings.ollama_url == "http://localhost:11434"
     assert settings.ollama_num_ctx == 8192
-    assert settings.ollama_think is None
+    assert settings.ollama_think is False
     monkeypatch.setenv("OLLAMA_MODEL", "qwen3:8b")
     monkeypatch.setenv("OLLAMA_NUM_CTX", "16384")
     monkeypatch.setenv("OLLAMA_THINK", "False")
@@ -106,6 +106,7 @@ def test_ollama_defaults_and_overrides(tmp_path: Path, monkeypatch: pytest.Monke
 
 def test_parse_optional_bool() -> None:
     assert parse_optional_bool("") is None
+    assert parse_optional_bool("default") is None
     assert parse_optional_bool("Yes") is True
     assert parse_optional_bool("0") is False
     with pytest.raises(ValueError):

@@ -8,8 +8,8 @@ Rank Fusion, and re-ranked with a cross-encoder.
 **Stack:** Python · Elasticsearch 9 · Sentence Transformers · Ollama (local LLM; Claude / OpenAI optional) · Streamlit (Phase 7)
 
 > **Status:** Phases 0–6 built (ingestion → parsing → indexing → hybrid retrieval →
-> re-ranking → retrieval evaluation → cited answer generation). Generation is unit-tested
-> but not yet run against a live model. The Streamlit app (Phase 7) is next.
+> re-ranking → retrieval evaluation → cited answer generation with a free local LLM via
+> Ollama). The Streamlit app (Phase 7) is next.
 > See [PLAN.md](PLAN.md).
 
 ## How it works
@@ -98,6 +98,33 @@ Next experiments: re-rank on the passage body instead of the header-prefixed tex
 FinanceBench's answer-format instructions from queries, weighted RRF or BM25 boosting of
 table titles, and an LLM re-ranker for table passages.
 
+## Results (generation spot-check)
+
+Six questions run end to end on a local `qwen3:8b` through Ollama: five FinanceBench
+questions with known answers plus one whose answer is not in the corpus. 8 passages per
+question, model fully on a laptop RTX 5060.
+
+| Question | Expected | Thinking off (default) | Thinking on |
+|---|---|---|---|
+| 3M FY2018 capex | $1,577M | ✅ verified quote | ✅ (quote paraphrased → flagged) |
+| Amazon FY2019 net income | $11,588M | ✅ | ✅ |
+| JPM Q2 2022 top segment by net income | CIB, $3,725M | ❌ | ❌ |
+| Amazon revenue growth FY16→17 | 30.8% | ❌ 28.6% | ✅ |
+| PepsiCo FY2022 restructuring | $411M | ✅ | ✅ |
+| MSFT FY2010 revenue (not indexed) | refuse | ✅ refused | ✅ refused |
+| Time per answer | | 2–14 s | 15–47 s |
+
+- The JPM miss is a **retrieval** miss: the CIB passage never reached the model (JPM's
+  filings don't use the standard Item structure).
+- Thinking helps **arithmetic** but costs 4–8× the latency, so it is off by default
+  (`OLLAMA_THINK=true` turns it on). Planned fix: have the model extract operands and compute
+  them in Python instead.
+- Quote verification did its job: the one paraphrased "quote" was flagged as unverified
+  instead of shown as a citation.
+
+This is a smoke test, not a benchmark. A full FinanceBench answer-accuracy evaluation is
+future work.
+
 ## Quickstart
 
 Prerequisites: [uv](https://docs.astral.sh/uv/), Docker. A CUDA GPU is optional (CPU works,
@@ -128,6 +155,10 @@ ollama pull qwen3:8b                  # ~5 GB; fits an 8 GB GPU
 # then in .env:  OLLAMA_MODEL=qwen3:8b
 uv run python scripts/check_llm.py    # server up? model pulled? one test answer with citations
 ```
+
+Thinking mode is off by default for speed (`OLLAMA_THINK=true` for better arithmetic, at
+4–8× the latency). Ollama's paid cloud models also work (`OLLAMA_URL=https://ollama.com` plus
+`OLLAMA_API_KEY`) but cost credits per token; local models are free.
 
 Claude (`ANTHROPIC_API_KEY`) and OpenAI (`OPENAI_API_KEY`) also work. With several
 configured, `auto` tries Claude → OpenAI → Ollama and falls through on errors. With none,

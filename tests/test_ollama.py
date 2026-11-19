@@ -45,16 +45,19 @@ class FakeResponse:
 
 
 class FakeSession:
+    """Returns (or raises) one outcome per call; the last outcome repeats."""
+
     def __init__(self, outcome: Any) -> None:
-        self.outcome = outcome
+        self.outcomes = list(outcome) if isinstance(outcome, list) else [outcome]
         self.headers: dict[str, str] = {}
         self.requests: list[dict] = []
 
     def post(self, url: str, json: dict, timeout: float) -> FakeResponse:
-        self.requests.append({"url": url, "json": json})
-        if isinstance(self.outcome, Exception):
-            raise self.outcome
-        return self.outcome
+        self.requests.append({"url": url, "json": dict(json)})
+        outcome = self.outcomes.pop(0) if len(self.outcomes) > 1 else self.outcomes[0]
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
 
 
 def chat_body(payload: dict, prompt_tokens: int = 1200, done_reason: str = "stop") -> dict:
@@ -127,3 +130,15 @@ def test_failures_become_generation_errors_with_actionable_messages(
     generator, _ = make_generator(outcome)
     with pytest.raises(GenerationError, match=message):
         generator.generate("q", [PASSAGE])
+
+
+def test_model_without_thinking_mode_is_retried_without_think() -> None:
+    rejected = FakeResponse(400, text='{"error":"\\"llama3.1:8b\\" does not support thinking"}')
+    generator, session = make_generator(
+        [rejected, FakeResponse(200, chat_body(GOOD_PAYLOAD))], think=False
+    )
+    answer = generator.generate("q", [PASSAGE])
+    assert answer.is_grounded
+    assert session.requests[0]["json"]["think"] is False
+    assert "think" not in session.requests[1]["json"]
+    assert generator.think is None  # later requests skip the field too

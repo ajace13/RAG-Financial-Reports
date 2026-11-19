@@ -22,6 +22,9 @@ DEFAULT_OLLAMA_URL = "http://localhost:11434"
 # 8 passages (~3.5k tokens) + instructions + answer fit comfortably; Ollama's own default
 # (4k on GPUs under 24 GB) would truncate RAG prompts.
 DEFAULT_OLLAMA_NUM_CTX = 8192
+# Thinking off: in live tests on qwen3:8b it made answers 4-8x faster (2-14 s vs 15-47 s)
+# with exact quotes; thinking on was better at arithmetic. "true" or "default" override it.
+DEFAULT_OLLAMA_THINK = "false"
 
 
 @dataclass(frozen=True)
@@ -47,9 +50,9 @@ class Settings:
 
 
 def parse_optional_bool(raw_value: str) -> bool | None:
-    """'true'/'false' (any case, also 1/0, yes/no) -> bool; empty -> None (use model default)."""
+    """'true'/'false' (any case, also 1/0, yes/no) -> bool; '' or 'default' -> None."""
     value = raw_value.strip().lower()
-    if not value:
+    if value in {"", "default"}:
         return None
     if value in {"true", "1", "yes"}:
         return True
@@ -92,5 +95,5 @@ def load_settings(env_file: Path | None = None) -> Settings:
         ollama_model=lookup("OLLAMA_MODEL", "").strip() or None,
         ollama_num_ctx=int(lookup("OLLAMA_NUM_CTX", str(DEFAULT_OLLAMA_NUM_CTX))),
         ollama_api_key=lookup("OLLAMA_API_KEY", "").strip() or None,
-        ollama_think=parse_optional_bool(lookup("OLLAMA_THINK", "")),
+        ollama_think=parse_optional_bool(lookup("OLLAMA_THINK", DEFAULT_OLLAMA_THINK)),
     )

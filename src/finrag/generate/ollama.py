@@ -29,6 +29,10 @@ REQUEST_TIMEOUT_SECONDS = 300
 CONTEXT_WARNING_RATIO = 0.95
 
 
+class ThinkingUnsupportedError(GenerationError):
+    """The model rejected the `think` request field (it has no thinking mode)."""
+
+
 class OllamaGenerator:
     provider = "ollama"
 
@@ -83,12 +87,22 @@ class OllamaGenerator:
             raise GenerationError(
                 f"Ollama model '{self.model}' is not available. Run `ollama pull {self.model}`."
             )
+        if response.status_code == 400 and "think" in request and "think" in response.text.lower():
+            raise ThinkingUnsupportedError(response.text[:300])
         if response.status_code >= 400:
             raise GenerationError(f"Ollama error {response.status_code}: {response.text[:300]}")
         return response.json()
 
     def generate(self, question: str, passages: Sequence[Passage]) -> Answer:
-        data = self.post_chat(self.build_request(question, passages))
+        try:
+            data = self.post_chat(self.build_request(question, passages))
+        except ThinkingUnsupportedError as error:
+            # Models without a thinking mode may reject the `think` field; drop it for good.
+            logger.warning(
+                "%s rejected the think setting (%s); retrying without it", self.model, error
+            )
+            self.think = None
+            data = self.post_chat(self.build_request(question, passages))
         content = (data.get("message") or {}).get("content", "")
         try:
             payload = json.loads(content)
