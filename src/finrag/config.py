@@ -12,7 +12,9 @@ DEFAULT_ES_URL = "http://localhost:9200"
 DEFAULT_ES_INDEX = "finrag-chunks"
 DEFAULT_DATA_DIR = "data"
 DEFAULT_EMBEDDING_MODEL = "BAAI/bge-base-en-v1.5"
-DEFAULT_RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
+# Chosen from the FinanceBench ablation: ms-marco-MiniLM-L-6-v2 lowered Hit@10 (it struggles
+# with table passages); bge-reranker-base raised it, at ~600 ms per query.
+DEFAULT_RERANKER_MODEL = "BAAI/bge-reranker-base"
 
 
 @dataclass(frozen=True)

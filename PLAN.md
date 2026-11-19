@@ -15,7 +15,7 @@ passage-level citations. Served through Streamlit.
 | Search engine | Elasticsearch 9.x, single node in Docker, security disabled, bound to localhost. |
 | Hybrid fusion | Client-side Reciprocal Rank Fusion over separate BM25 and kNN queries. |
 | Embeddings | `BAAI/bge-base-en-v1.5` (768-d, cosine) to start; model name lives in config. |
-| Re-ranker | `cross-encoder/ms-marco-MiniLM-L-6-v2` to start; compare `BAAI/bge-reranker-base`. |
+| Re-ranker | `BAAI/bge-reranker-base` (chosen after the ablation: `cross-encoder/ms-marco-MiniLM-L-6-v2` lowered Hit@10 on table-heavy questions; bge raised it, at ~600 ms/query). |
 | Tables | Each table → Markdown, kept as its own chunk with section title + units line attached. |
 | Eval | FinanceBench open sample + ~20 hand-written questions on our tickers. |
 | Tooling | uv, Python 3.12, ruff, pytest, GitHub Actions CI. |

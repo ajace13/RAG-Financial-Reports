@@ -37,6 +37,7 @@ def test_defaults_when_nothing_is_set(tmp_path: Path) -> None:
     assert settings.es_index == DEFAULT_ES_INDEX
     assert settings.sec_user_agent is None
     assert settings.data_dir == PROJECT_ROOT / "data"
+    assert settings.reranker_model == "BAAI/bge-reranker-base"
 
 
 def test_values_read_from_env_file(tmp_path: Path) -> None:

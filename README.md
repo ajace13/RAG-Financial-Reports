@@ -21,7 +21,7 @@ EDGAR ─► fetch 10-K/10-Q ─► HTML → text/table blocks ─► Item secti
                                       ES BM25 (english)            ES dense_vector (bge-base, HNSW)
                                               └────── Reciprocal Rank Fusion ─┘
                                                               ▼
-                                           cross-encoder re-rank (ms-marco-MiniLM)
+                                           cross-encoder re-rank (bge-reranker-base)
                                                               ▼
                                                top passages with EDGAR source links
 ```
@@ -81,7 +81,7 @@ What the numbers say:
 - **The off-the-shelf MS-MARCO cross-encoder hurts.** It was trained on web prose and does
   poorly on pipe-delimited tables. `bge-reranker-base` recovers Hit@5/10 and is the best
   method across a company's filings, but neither re-ranker improves Hit@1, and both cost
-  4–20× the latency.
+  4–20× the latency. `bge-reranker-base` is therefore the default re-ranker.
 
 Next experiments: re-rank on the passage body instead of the header-prefixed text, strip
 FinanceBench's answer-format instructions from queries, weighted RRF or BM25 boosting of
@@ -114,9 +114,9 @@ Search and evaluate:
 ```bash
 uv run python scripts/search.py "What drove Azure growth?" --ticker MSFT --fiscal-year 2024
 uv run python scripts/run_retrieval_eval.py
-# variant run, e.g. a different re-ranker, written to *_bge-reranker-base.* result files
-RERANKER_MODEL=BAAI/bge-reranker-base uv run python scripts/run_retrieval_eval.py \
-    --methods hybrid+rerank --tag bge-reranker-base
+# variant run, e.g. a different re-ranker, written to *_minilm.* result files
+RERANKER_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2 uv run python scripts/run_retrieval_eval.py \
+    --methods hybrid+rerank --tag minilm
 ```
 
 ## Project layout
