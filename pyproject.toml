@@ -5,8 +5,11 @@ description = "Retrieval-augmented Q&A over SEC 10-K/10-Q filings: hybrid BM25 +
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "beautifulsoup4>=4.12",
     "elasticsearch>=9.5,<10",
+    "lxml>=5.3",
     "python-dotenv>=1.0",
+    "requests>=2.32",
 ]
 
 [dependency-groups]
