@@ -69,16 +69,16 @@ Character offsets were dropped from the original schema: text-fragment links loc
 
 Each phase ends at a reviewable checkpoint.
 
-| # | Phase | Done when | New deps |
-|---|---|---|---|
-| 0 | Scaffold: uv, Py 3.12, ES in Docker, ruff, pytest, CI | `docker compose up -d` + `scripts/check_es.py` reports a healthy cluster | `elasticsearch`, `python-dotenv`; dev: `pytest`, `ruff` |
-| 1 | EDGAR ingestion | Raw filings + metadata for ~5 tickers cached in `data/raw/` | `requests` |
-| 2 | Parse + chunk | Chunk JSONL inspected by eye, tables included and units attached | `beautifulsoup4`, `lxml` |
-| 3 | ES index + BM25 baseline + CLI search | Sensible passages for hand-written queries | — |
-| 3.5 | Mini eval set + retrieval metrics (recall@k, MRR, nDCG) | Baseline numbers recorded | — |
-| 4 | Embeddings + kNN + RRF | Hybrid vs BM25 measured | `sentence-transformers`, `torch` (CUDA 12.8+ build) |
-| 5 | Cross-encoder re-ranking | Rerank gain measured | — |
-| 6 | Generation with citations | Answers cite real passages; refuses when unsupported | `anthropic` |
+| # | Phase | Done when | New deps | Status |
+|---|---|---|---|---|
+| 0 | Scaffold: uv, Py 3.12, ES in Docker, ruff, pytest, CI | `docker compose up -d` + `scripts/check_es.py` reports a healthy cluster | `elasticsearch`, `python-dotenv`; dev: `pytest`, `ruff` | ✅ |
+| 1 | EDGAR ingestion | Raw filings + metadata for ~5 tickers cached in `data/raw/` | `requests` | ✅ 132 filings |
+| 2 | Parse + chunk | Chunk JSONL inspected by eye, tables included and units attached | `beautifulsoup4`, `lxml` | ✅ ~47k chunks |
+| 3 | ES index + BM25 baseline + CLI search | Sensible passages for hand-written queries | — | ✅ |
+| 3.5 | Eval set + retrieval metrics (hit@k, MRR, nDCG) | Baseline numbers recorded | — | ✅ FinanceBench |
+| 4 | Embeddings + kNN + RRF | Hybrid vs BM25 measured | `sentence-transformers`, `torch` (CUDA 13.0 build on Windows) | ✅ |
+| 5 | Cross-encoder re-ranking | Rerank gain measured | — | ✅ |
+| 6 | Generation with citations | Answers cite real passages; refuses when unsupported | `anthropic`, `openai` (fallback) | next |
 | 7 | Streamlit app (+ on-demand ticker ingest) | End-to-end demo | `streamlit` |
 | 8 | Polish | README with diagram, ablation table, demo GIF | — |
 

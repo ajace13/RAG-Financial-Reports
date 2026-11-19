@@ -1,0 +1,36 @@
+{
+  "config": {
+    "embedding_model": "BAAI/bge-base-en-v1.5",
+    "reranker_model": "BAAI/bge-reranker-base",
+    "candidates": 50,
+    "rerank_pool": 30
+  },
+  "judgeable": 125,
+  "evaluated": 127,
+  "unjudgeable_question_ids": [
+    "financebench_id_05915",
+    "financebench_id_00521"
+  ],
+  "results": {
+    "document": {
+      "hybrid+rerank": {
+        "hit@1": 0.152,
+        "hit@5": 0.416,
+        "hit@10": 0.544,
+        "mrr@10": 0.2652031746031746,
+        "ndcg@10": 0.26963010394369646,
+        "latency_ms": 643.3027552030981
+      }
+    },
+    "company": {
+      "hybrid+rerank": {
+        "hit@1": 0.08,
+        "hit@5": 0.368,
+        "hit@10": 0.488,
+        "mrr@10": 0.19617460317460317,
+        "ndcg@10": 0.20581717952777193,
+        "latency_ms": 591.5825928030536
+      }
+    }
+  }
+}
