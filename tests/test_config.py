@@ -9,7 +9,14 @@ from finrag.config import (
     load_settings,
 )
 
-CONFIG_VARS = ("ES_URL", "ES_INDEX", "SEC_USER_AGENT", "DATA_DIR")
+CONFIG_VARS = (
+    "ES_URL",
+    "ES_INDEX",
+    "SEC_USER_AGENT",
+    "DATA_DIR",
+    "EMBEDDING_MODEL",
+    "RERANKER_MODEL",
+)
 
 
 @pytest.fixture(autouse=True)

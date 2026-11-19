@@ -11,6 +11,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_ES_URL = "http://localhost:9200"
 DEFAULT_ES_INDEX = "finrag-chunks"
 DEFAULT_DATA_DIR = "data"
+DEFAULT_EMBEDDING_MODEL = "BAAI/bge-base-en-v1.5"
+DEFAULT_RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
 
 @dataclass(frozen=True)
@@ -21,6 +23,8 @@ class Settings:
     es_index: str
     sec_user_agent: str | None
     data_dir: Path
+    embedding_model: str
+    reranker_model: str
 
 
 def resolve_data_dir(raw_value: str) -> Path:
@@ -46,4 +50,6 @@ def load_settings(env_file: Path | None = None) -> Settings:
         es_index=lookup("ES_INDEX", DEFAULT_ES_INDEX),
         sec_user_agent=sec_user_agent,
         data_dir=resolve_data_dir(lookup("DATA_DIR", DEFAULT_DATA_DIR)),
+        embedding_model=lookup("EMBEDDING_MODEL", DEFAULT_EMBEDDING_MODEL),
+        reranker_model=lookup("RERANKER_MODEL", DEFAULT_RERANKER_MODEL),
     )

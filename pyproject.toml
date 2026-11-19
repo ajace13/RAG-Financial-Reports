@@ -8,9 +8,30 @@ dependencies = [
     "beautifulsoup4>=4.12",
     "elasticsearch>=9.5,<10",
     "lxml>=5.3",
+    "numpy>=1.26",
     "python-dotenv>=1.0",
     "requests>=2.32",
+    "sentence-transformers>=5.0",
+    "torch>=2.9,<2.15",
 ]
+
+# PyTorch: CUDA 13.0 wheels on Windows (local GPU dev box), CPU wheels elsewhere (CI).
+# Linux/CUDA users can point the second entry at a CUDA index instead.
+[tool.uv.sources]
+torch = [
+    { index = "pytorch-cu130", marker = "sys_platform == 'win32'" },
+    { index = "pytorch-cpu", marker = "sys_platform != 'win32'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
 
 [dependency-groups]
 dev = [
