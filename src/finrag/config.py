@@ -15,6 +15,9 @@ DEFAULT_EMBEDDING_MODEL = "BAAI/bge-base-en-v1.5"
 # Chosen from the FinanceBench ablation: ms-marco-MiniLM-L-6-v2 lowered Hit@10 (it struggles
 # with table passages); bge-reranker-base raised it, at ~600 ms per query.
 DEFAULT_RERANKER_MODEL = "BAAI/bge-reranker-base"
+DEFAULT_CLAUDE_MODEL = "claude-opus-5-5"
+DEFAULT_CLAUDE_EFFORT = "high"
+DEFAULT_OPENAI_MODEL = "gpt-6.2-astra"
 
 
 @dataclass(frozen=True)
@@ -27,6 +30,11 @@ class Settings:
     data_dir: Path
     embedding_model: str
     reranker_model: str
+    anthropic_api_key: str | None
+    claude_model: str
+    claude_effort: str
+    openai_api_key: str | None
+    openai_model: str
 
 
 def resolve_data_dir(raw_value: str) -> Path:
@@ -54,4 +62,9 @@ def load_settings(env_file: Path | None = None) -> Settings:
         data_dir=resolve_data_dir(lookup("DATA_DIR", DEFAULT_DATA_DIR)),
         embedding_model=lookup("EMBEDDING_MODEL", DEFAULT_EMBEDDING_MODEL),
         reranker_model=lookup("RERANKER_MODEL", DEFAULT_RERANKER_MODEL),
+        anthropic_api_key=lookup("ANTHROPIC_API_KEY", "").strip() or None,
+        claude_model=lookup("CLAUDE_MODEL", DEFAULT_CLAUDE_MODEL),
+        claude_effort=lookup("CLAUDE_EFFORT", DEFAULT_CLAUDE_EFFORT),
+        openai_api_key=lookup("OPENAI_API_KEY", "").strip() or None,
+        openai_model=lookup("OPENAI_MODEL", DEFAULT_OPENAI_MODEL),
     )

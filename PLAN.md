@@ -78,7 +78,7 @@ Each phase ends at a reviewable checkpoint.
 | 3.5 | Eval set + retrieval metrics (hit@k, MRR, nDCG) | Baseline numbers recorded | — | ✅ FinanceBench |
 | 4 | Embeddings + kNN + RRF | Hybrid vs BM25 measured | `sentence-transformers`, `torch` (CUDA 13.0 build on Windows) | ✅ |
 | 5 | Cross-encoder re-ranking | Rerank gain measured | — | ✅ |
-| 6 | Generation with citations | Answers cite real passages; refuses when unsupported | `anthropic`, `openai` (fallback) | next |
+| 6 | Generation with citations | Answers cite real passages; refuses when unsupported | `anthropic`, `openai` (fallback) | ✅ built + unit-tested; live run needs an API key |
 | 7 | Streamlit app (+ on-demand ticker ingest) | End-to-end demo | `streamlit` |
 | 8 | Polish | README with diagram, ablation table, demo GIF | — |
 
