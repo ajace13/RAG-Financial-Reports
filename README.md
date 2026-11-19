@@ -7,12 +7,9 @@ Rank Fusion, and re-ranked with a cross-encoder.
 
 **Stack:** Python · Elasticsearch 9 · Sentence Transformers · Ollama (local LLM; Claude / OpenAI optional) · Streamlit
 
-> **Status:** Phases 0–7 built (ingestion → parsing → indexing → hybrid retrieval →
-> re-ranking → retrieval evaluation → cited answers from a free local LLM → Streamlit app).
-> Any company can be added from the app in the background (last 5 years or full EDGAR
-> history), optionally with 8-K earnings releases and proxy statements. Next: XBRL
-> structured facts.
-> See [PLAN.md](PLAN.md).
+Includes a retrieval evaluation on FinanceBench, cited answers from a free local LLM, and a
+Streamlit app where any company can be added in the background (last 5 years or full EDGAR
+history), optionally with 8-K earnings releases and proxy statements.
 
 ## How it works
 
@@ -101,10 +98,6 @@ What the numbers say:
   method across a company's filings, but neither re-ranker improves Hit@1, and both cost
   4–20× the latency. `bge-reranker-base` is therefore the default re-ranker.
 
-Next experiments: re-rank on the passage body instead of the header-prefixed text, strip
-FinanceBench's answer-format instructions from queries, weighted RRF or BM25 boosting of
-table titles, and an LLM re-ranker for table passages.
-
 ## Results (generation spot-check)
 
 Six questions run end to end on a local `qwen3:8b` through Ollama: five FinanceBench
@@ -124,13 +117,11 @@ question, model fully on a laptop RTX 5060.
 - The JPM miss is a **retrieval** miss: the CIB passage never reached the model (JPM's
   filings don't use the standard Item structure).
 - Thinking helps **arithmetic** but costs 4–8× the latency, so it is off by default
-  (`OLLAMA_THINK=true` turns it on). Planned fix: have the model extract operands and compute
-  them in Python instead.
+  (`OLLAMA_THINK=true` turns it on).
 - Quote verification did its job: the one paraphrased "quote" was flagged as unverified
   instead of shown as a citation.
 
-This is a smoke test, not a benchmark. A full FinanceBench answer-accuracy evaluation is
-future work.
+This is a smoke test, not a benchmark.
 
 ## Quickstart
 
@@ -226,9 +217,7 @@ Measured on a laptop (RTX 5060, fp16 embedding at ~214 passages/s):
   compensation in fiscal 2025?" is answered from the Summary Compensation Table row, with
   a verified citation, even without a form filter.
 
-Both are indexed as one section per document. Proxies are long (250–330 passages), and
-splitting them by their own headings (Compensation Discussion and Analysis, etc.) is a
-possible refinement.
+Both are indexed as one section per document (proxies run 250–330 passages each).
 
 Rough cost per company-year: ~930 passages and ~23 MB of disk (13 MB raw HTML, 10 MB index,
 chunks and embeddings). Elasticsearch runs with a 2 GB heap. Pre-2001 plain-text filings
