@@ -10,7 +10,8 @@ Rank Fusion, and re-ranked with a cross-encoder.
 > **Status:** Phases 0–7 built (ingestion → parsing → indexing → hybrid retrieval →
 > re-ranking → retrieval evaluation → cited answers from a free local LLM → Streamlit app).
 > Any company can be added from the app in the background (last 5 years or full EDGAR
-> history). Next: 8-K earnings releases and proxy statements, then XBRL structured facts.
+> history), optionally with 8-K earnings releases and proxy statements. Next: XBRL
+> structured facts.
 > See [PLAN.md](PLAN.md).
 
 ## How it works
@@ -196,6 +197,7 @@ From the app's sidebar (**Add a company**), or the command line:
 uv run python scripts/add_ticker.py NVDA                    # last 5 years of 10-K + 10-Q
 uv run python scripts/add_ticker.py NVDA --full-history     # all HTML-era filings (~2001 on)
 uv run python scripts/add_ticker.py NVDA AAPL GOOGL         # several in a row
+uv run python scripts/add_ticker.py MSFT --earnings-releases --proxies   # optional doc types
 ```
 
 Ingestion is incremental: filings already indexed are skipped, so switching a company to
@@ -211,6 +213,22 @@ Measured on a laptop (RTX 5060, fp16 embedding at ~214 passages/s):
 |---|---|---|---|
 | NVDA, last 5 years | 20 | 3,440 | ~35 s |
 | NVDA, extend to full history (FY2002–FY2021) | +79 | +14,569 | 2 min 46 s |
+| MSFT, 5 years + earnings releases + proxies (13 already indexed) | +32 | +3,182 | 61 s |
+
+**Optional document types** (checkboxes in the app, flags on the CLI):
+
+- **Earnings releases.** 8-Ks reporting Item 2.02, with the press release itself (Exhibit
+  99.1) located through the filing index and parsed in place of the 8-K cover page. Each is
+  labelled with the quarter it reports (Microsoft's release of 2026-10-28 is FY2027 Q1),
+  derived from the filing date and the company's fiscal year-ends.
+- **Proxy statements (DEF 14A).** Executive compensation, board and shareholder votes,
+  labelled with the fiscal year they cover. Example: "What was Satya Nadella's total
+  compensation in fiscal 2025?" is answered from the Summary Compensation Table row, with
+  a verified citation, even without a form filter.
+
+Both are indexed as one section per document. Proxies are long (250–330 passages), and
+splitting them by their own headings (Compensation Discussion and Analysis, etc.) is a
+possible refinement.
 
 Rough cost per company-year: ~930 passages and ~23 MB of disk (13 MB raw HTML, 10 MB index,
 chunks and embeddings). Elasticsearch runs with a 2 GB heap. Pre-2001 plain-text filings

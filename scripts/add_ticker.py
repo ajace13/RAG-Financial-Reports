@@ -4,6 +4,7 @@ Examples:
     uv run python scripts/add_ticker.py NVDA
     uv run python scripts/add_ticker.py MSFT --full-history     # extend to full EDGAR history
     uv run python scripts/add_ticker.py NVDA AAPL GOOGL         # several, one after another
+    uv run python scripts/add_ticker.py MSFT --earnings-releases --proxies
 """
 
 import argparse
@@ -26,6 +27,16 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="all HTML-era filings (~2001 onward) instead of the last 5 years",
     )
+    parser.add_argument(
+        "--earnings-releases",
+        action="store_true",
+        help="also quarterly earnings press releases (8-K Item 2.02, Exhibit 99.1)",
+    )
+    parser.add_argument(
+        "--proxies",
+        action="store_true",
+        help="also proxy statements (DEF 14A: executive pay, board, shareholder votes)",
+    )
     return parser.parse_args()
 
 
@@ -41,7 +52,12 @@ def main() -> int:
     settings = load_settings()
     failures = 0
     for ticker in args.tickers:
-        request = IngestRequest(ticker=ticker, full_history=args.full_history)
+        request = IngestRequest(
+            ticker=ticker,
+            full_history=args.full_history,
+            include_earnings_releases=args.earnings_releases,
+            include_proxies=args.proxies,
+        )
         try:
             result = ingest_company(settings, request, log_progress)
         except IngestError as error:
@@ -50,7 +66,7 @@ def main() -> int:
             continue
         logger.info(
             "%s (%s, %s): %d filings in scope, %d already indexed, %d added (%d chunks), "
-            "%d non-HTML skipped, %d failed",
+            "%d non-HTML skipped, %d without exhibit, %d failed",
             result.ticker,
             result.company_name,
             request.scope_label,
@@ -59,6 +75,7 @@ def main() -> int:
             result.filings_added,
             result.chunks_added,
             result.skipped_non_html,
+            result.missing_exhibits,
             len(result.failed),
         )
     return 1 if failures else 0

@@ -9,7 +9,12 @@ ARCHIVE_URL = "https://www.sec.gov/Archives/edgar/data/{cik}/{accession_digits}/
 
 @dataclass(frozen=True)
 class FilingRecord:
-    """One periodic filing (10-K / 10-Q) and where its primary document lives on EDGAR."""
+    """One filing and the document we parse from it.
+
+    For 10-K / 10-Q / DEF 14A that is EDGAR's primary document. For an 8-K earnings release
+    it is the press-release exhibit (EX-99.1), which ingestion swaps in for the 8-K cover.
+    `items` holds EDGAR's 8-K item codes (e.g. "2.02,9.01"); empty for other forms.
+    """
 
     ticker: str
     cik: int
@@ -22,10 +27,20 @@ class FilingRecord:
     fiscal_year_end: str | None
     fiscal_year: int | None
     fiscal_period: str | None
+    items: str = ""
 
     @property
     def is_amendment(self) -> bool:
         return self.form.endswith("/A")
+
+    @property
+    def index_url(self) -> str:
+        """EDGAR filing index page listing every document (and its type) in the filing."""
+        return ARCHIVE_URL.format(
+            cik=self.cik,
+            accession_digits=self.accession.replace("-", ""),
+            document=f"{self.accession}-index.htm",
+        )
 
     @property
     def source_url(self) -> str:
@@ -60,4 +75,5 @@ class FilingRecord:
             fiscal_year_end=record.get("fiscal_year_end"),
             fiscal_year=record.get("fiscal_year"),
             fiscal_period=record.get("fiscal_period"),
+            items=record.get("items", ""),
         )

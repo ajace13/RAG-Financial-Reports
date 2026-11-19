@@ -6,7 +6,7 @@ from finrag.chunking import Chunk, ChunkingConfig, FilingContext, chunk_sections
 from finrag.ingest.models import FilingRecord
 from finrag.parsing.dei import fiscal_labels_from_dei
 from finrag.parsing.html_blocks import parse_filing_html
-from finrag.parsing.sections import UNSECTIONED, split_sections
+from finrag.parsing.sections import UNSECTIONED, document_sections
 
 
 @dataclass
@@ -61,7 +61,7 @@ def chunk_filing(
     )
     document = parse_filing_html(html)
     fiscal_year, fiscal_period, label_source = resolve_fiscal_labels(record, document.dei)
-    sections = split_sections(document.blocks, record.form)
+    sections = document_sections(document.blocks, record.form)
     context = FilingContext(record=record, fiscal_year=fiscal_year, fiscal_period=fiscal_period)
     chunks, dropped_tiny = chunk_sections(sections, context, config)
 

@@ -14,6 +14,7 @@ fiscal years by the end year, Ulta by the start year). Derived labels follow the
 convention. The iXBRL `dei` facts read at parse time are authoritative when present.
 """
 
+from collections.abc import Sequence
 from datetime import date, timedelta
 
 # 52/53-week years ending in the first days of January are named for the preceding year
@@ -80,3 +81,43 @@ def quarterly_fiscal_period(report_date: date, prior_year_end: date) -> tuple[in
     if quarter not in (1, 2, 3):
         return None
     return fiscal_year_label(prior_year_end) + 1, f"Q{quarter}"
+
+
+def latest_year_end_before(
+    day: date, year_ends: Sequence[date], fiscal_year_end: str | None
+) -> date | None:
+    """Most recent fiscal year-end strictly before `day`.
+
+    The company's own 10-K year-ends are preferred. When none falls within the past year
+    (e.g. the 10-K for the year just ended is not filed yet), the nominal MMDD date is used.
+    """
+    recent = [
+        year_end
+        for year_end in year_ends
+        if year_end < day and (day - year_end).days <= MAX_DAYS_AFTER_YEAR_END
+    ]
+    if recent:
+        return max(recent)
+    if not fiscal_year_end:
+        return None
+    month, day_of_month = parse_fiscal_year_end(fiscal_year_end)
+    nominal = [
+        nominal_fiscal_year_end(year, month, day_of_month) for year in (day.year - 1, day.year)
+    ]
+    earlier = [candidate for candidate in nominal if candidate < day]
+    return max(earlier) if earlier else None
+
+
+def earnings_release_period(filing_date: date, prior_year_end: date) -> tuple[int, str] | None:
+    """Fiscal quarter an earnings release reports on, from when it was filed.
+
+    Releases come out a few weeks after the quarter closes, so the number of whole quarters
+    between the last year-end and the filing date is the quarter just reported; zero means
+    the release covers the fourth quarter (and full year) that just ended.
+    """
+    elapsed_quarters = int((filing_date - prior_year_end).days // DAYS_PER_QUARTER)
+    if elapsed_quarters == 0:
+        return fiscal_year_label(prior_year_end), "Q4"
+    if elapsed_quarters in (1, 2, 3):
+        return fiscal_year_label(prior_year_end) + 1, f"Q{elapsed_quarters}"
+    return None

@@ -9,6 +9,7 @@ from typing import Any
 
 from finrag.chunking import split_sentences
 from finrag.generate.models import Passage
+from finrag.parsing.sections import NON_ITEM_SECTIONS
 from finrag.retrieve.models import SearchHit
 
 
@@ -23,9 +24,7 @@ def passage_label(document: dict[str, Any]) -> str:
         period = f"FY{fiscal_year} {fiscal_period}"
     section = document.get("section_title") or "Unknown section"
     item = document.get("item")
-    section_label = (
-        f"Item {item}. {section}" if item and item not in ("front", "unknown") else section
-    )
+    section_label = f"Item {item}. {section}" if item and item not in NON_ITEM_SECTIONS else section
     units = f" ({document['units']})" if document.get("units") else ""
     filing = f"{document['company_name']} ({document['ticker']}) {document['form']} {period}"
     return f"{filing} | {section_label}{units}"

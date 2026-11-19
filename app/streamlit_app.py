@@ -82,10 +82,22 @@ def use_example(question: str, tickers: tuple[str, ...]) -> None:
     st.session_state["run_example"] = True
 
 
-def queue_ingest(ticker: str, full_history: bool) -> None:
+def queue_ingest(
+    ticker: str,
+    full_history: bool,
+    include_earnings_releases: bool = False,
+    include_proxies: bool = False,
+) -> None:
     ticker = ticker.strip().upper()
     if ticker:
-        get_job_manager().submit(IngestRequest(ticker=ticker, full_history=full_history))
+        get_job_manager().submit(
+            IngestRequest(
+                ticker=ticker,
+                full_history=full_history,
+                include_earnings_releases=include_earnings_releases,
+                include_proxies=include_proxies,
+            )
+        )
 
 
 def job_summary(job: IngestJob) -> str:
@@ -175,15 +187,24 @@ def render_add_company() -> None:
             "History",
             options=[False, True],
             format_func=lambda full: (
-                "Full EDGAR history (~2001 on, ~5–6 min)"
+                "Full EDGAR history (~2001 on, a few minutes)"
                 if full
                 else f"Last {RECENT_YEARS} years (~1 min)"
             ),
             help="Runs in the background. Already-indexed filings are skipped, so choosing full "
             "history for an indexed company only fetches the older filings.",
         )
+        st.caption("10-K and 10-Q reports are always included. Also include:")
+        earnings = st.checkbox(
+            "Quarterly earnings releases (8-K)",
+            help="Press releases with each quarter's results (Exhibit 99.1 of 8-K Item 2.02).",
+        )
+        proxies = st.checkbox(
+            "Proxy statements (DEF 14A)",
+            help="Executive compensation, board of directors and shareholder proposals.",
+        )
         if st.form_submit_button("Fetch and index") and ticker.strip():
-            queue_ingest(ticker, full_history)
+            queue_ingest(ticker, full_history, earnings, proxies)
             st.toast(f"Queued {ticker.strip().upper()} for indexing")
 
 
@@ -267,7 +288,8 @@ def render_answer(result: QAResult) -> None:
 def main() -> None:
     st.title("Financial Filings Q&A")
     st.caption(
-        "Ask about SEC 10-K / 10-Q filings. Answers cite the exact passages they use; "
+        "Ask about SEC filings (10-K, 10-Q, earnings releases, proxies). Answers cite the exact "
+        "passages they use; "
         "click a source to see the cited row or sentence, or open it on EDGAR."
     )
     try:

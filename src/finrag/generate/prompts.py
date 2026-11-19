@@ -5,9 +5,9 @@ from collections.abc import Sequence
 from finrag.generate.models import Passage
 
 ANSWER_RULES = """\
-You answer questions about SEC 10-K and 10-Q filings using only the passages provided with
-each question. Each passage comes from a filing, and its title gives the company, form,
-fiscal period, section and units.
+You answer questions about SEC filings (10-K and 10-Q reports, 8-K earnings releases and
+DEF 14A proxy statements) using only the passages provided with each question. Each passage
+comes from a filing, and its title gives the company, form, fiscal period, section and units.
 
 Rules:
 - Use only facts stated in the passages. Do not add outside knowledge about the company,

@@ -90,6 +90,15 @@ UNIDENTIFIED_TITLE = "Section not identified"
 # (Large Item 15 sections are left alone: many filers legitimately place their financial
 # statements under "Exhibits and Financial Statement Schedules".)
 MAX_FRONT_MATTER_BLOCKS = 150
+# Documents without 10-K/10-Q Item structure get one section named for what they are. Running
+# the Item splitter on them would mislabel stray "Item ..." lines (e.g. inside a proxy).
+EARNINGS_RELEASE_SECTION = "release"
+PROXY_SECTION = "proxy"
+WHOLE_DOCUMENT_SECTIONS = {
+    "8-K": (EARNINGS_RELEASE_SECTION, "Earnings release (Exhibit 99.1)"),
+    "DEF 14A": (PROXY_SECTION, "Proxy statement"),
+}
+NON_ITEM_SECTIONS = frozenset({FRONT_MATTER, UNSECTIONED, EARNINGS_RELEASE_SECTION, PROXY_SECTION})
 
 
 @dataclass
@@ -101,7 +110,7 @@ class Section:
 
     @property
     def label(self) -> str:
-        if self.item in (FRONT_MATTER, UNSECTIONED):
+        if self.item in NON_ITEM_SECTIONS:
             return self.title
         prefix = f"Part {self.part}, " if self.part else ""
         return f"{prefix}Item {self.item}. {self.title}"
@@ -275,3 +284,12 @@ def relabel_if_oversized(section: Section) -> Section:
         return section
     logger.debug("Relabelling oversized section %s (%d blocks)", section.label, len(section.blocks))
     return Section(part="", item=UNSECTIONED, title=UNIDENTIFIED_TITLE, blocks=section.blocks)
+
+
+def document_sections(blocks: list[Block], form: str) -> list[Section]:
+    """Item sections for 10-K/10-Q; one named section for earnings releases and proxies."""
+    whole_document = WHOLE_DOCUMENT_SECTIONS.get(form.removesuffix("/A"))
+    if whole_document is not None:
+        item, title = whole_document
+        return [Section(part="", item=item, title=title, blocks=list(blocks))]
+    return split_sections(blocks, form)

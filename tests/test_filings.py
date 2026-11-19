@@ -29,7 +29,10 @@ def labelled_records() -> list:
 
 
 def test_parse_keeps_periodic_forms_and_labels_from_10k_history() -> None:
-    records = labelled_records()
+    all_records = labelled_records()
+    # The 8-K is kept (it could be an earnings release) but, lacking Item 2.02, gets no labels.
+    assert all_records[0].form == "8-K" and all_records[0].fiscal_year is None
+    records = all_records[1:]
     assert [record.form for record in records] == ["10-Q", "10-K", "10-K/A", "10-Q"]
     assert (records[0].fiscal_year, records[0].fiscal_period) == (2025, "Q1")
     assert (records[1].fiscal_year, records[1].fiscal_period) == (2024, "FY")
