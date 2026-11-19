@@ -20,6 +20,17 @@ def iter_chunks(path: Path) -> Iterator[dict[str, Any]]:
                 yield json.loads(line)
 
 
+def append_chunks(path: Path, chunks: Iterable[dict[str, Any]]) -> int:
+    """Append chunk dicts to the corpus JSONL (incremental ingestion); returns lines written."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    written = 0
+    with path.open("a", encoding="utf-8") as chunks_file:
+        for chunk in chunks:
+            chunks_file.write(json.dumps(chunk) + "\n")
+            written += 1
+    return written
+
+
 def bulk_actions(index: str, documents: Iterable[dict[str, Any]]) -> Iterator[dict[str, Any]]:
     for document in documents:
         yield {"_index": index, "_id": document["chunk_id"], "_source": document}

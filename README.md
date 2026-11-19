@@ -9,7 +9,8 @@ Rank Fusion, and re-ranked with a cross-encoder.
 
 > **Status:** Phases 0–7 built (ingestion → parsing → indexing → hybrid retrieval →
 > re-ranking → retrieval evaluation → cited answers from a free local LLM → Streamlit app).
-> Next: on-demand ingestion of new tickers from the app, then polish.
+> Any company can be added from the app in the background (last 5 years or full EDGAR
+> history). Next: 8-K earnings releases and proxy statements, then XBRL structured facts.
 > See [PLAN.md](PLAN.md).
 
 ## How it works
@@ -187,6 +188,34 @@ text), and an optional retrieval debug table with each passage's BM25 / vector /
 re-rank position. If your LLM shares a small GPU, set `RETRIEVAL_DEVICE=cpu` (see design
 notes above).
 
+### Adding companies
+
+From the app's sidebar (**Add a company**), or the command line:
+
+```bash
+uv run python scripts/add_ticker.py NVDA                    # last 5 years of 10-K + 10-Q
+uv run python scripts/add_ticker.py NVDA --full-history     # all HTML-era filings (~2001 on)
+uv run python scripts/add_ticker.py NVDA AAPL GOOGL         # several in a row
+```
+
+Ingestion is incremental: filings already indexed are skipped, so switching a company to
+full history fetches only the older filings. In the app it runs on a background thread
+with a live progress banner. Downloading and parsing overlap with questions, while the GPU
+step (embedding) takes turns with question answering and unloads the local Ollama model
+first. If a question mentions a year outside a company's indexed range, the app offers a
+one-click "fetch full history" (or "check for newer filings") button.
+
+Measured on a laptop (RTX 5060, fp16 embedding at ~214 passages/s):
+
+| Request | Filings | Passages | Time |
+|---|---|---|---|
+| NVDA, last 5 years | 20 | 3,440 | ~35 s |
+| NVDA, extend to full history (FY2002–FY2021) | +79 | +14,569 | 2 min 46 s |
+
+Rough cost per company-year: ~930 passages and ~23 MB of disk (13 MB raw HTML, 10 MB index,
+chunks and embeddings). Elasticsearch runs with a 2 GB heap. Pre-2001 plain-text filings
+are skipped (no table structure to parse).
+
 Search and evaluate retrieval:
 
 ```bash
@@ -201,7 +230,8 @@ RERANKER_MODEL=cross-encoder/ms-marco-MiniLM-L-6-v2 uv run python scripts/run_re
 
 ```
 src/finrag/
-  ingest/       EDGAR client, filing discovery, fiscal labels, raw cache + manifest
+  ingest/       EDGAR client, filing discovery, fiscal labels, raw cache + manifest,
+                incremental per-company ingestion service, background job manager
   parsing/      HTML → blocks, tables, Item sections, iXBRL dei facts, per-filing pipeline
   chunking.py   section-aware prose/table chunking with context headers
   embedding.py  Sentence-Transformers embedder + on-disk cache

@@ -19,6 +19,7 @@ from finrag.generate.models import Answer, Passage
 from finrag.generate.structured import normalize_for_match
 from finrag.retrieve.models import SearchHit
 
+YEAR_MENTION_PATTERN = re.compile(r"(?<!\d)((?:19|20)\d{2})(?!\d)")
 CELL_SEPARATOR = " | "
 NUMERIC_CELL_PATTERN = re.compile(r"^[$€£(\-–—]*\s*\d[\d,.]*\s*\)?\s*%?$")
 FRAGMENT_EDGE_WORDS = 5
@@ -155,6 +156,23 @@ def passage_link(passage: Passage, cited_texts: Sequence[str]) -> str:
     candidates = cited_blocks or list(passage.blocks)
     anchor = next((fragment_anchor_text(block) for block in candidates if block.strip()), "")
     return text_fragment_url(passage.source_url, anchor)
+
+
+def fiscal_years_mentioned(question: str) -> set[int]:
+    """Four-digit years in a question ('FY2018', 'fiscal 2012', 'in 2009')."""
+    return {int(year) for year in YEAR_MENTION_PATTERN.findall(question)}
+
+
+def years_outside_coverage(
+    mentioned: set[int], indexed_years: Sequence[int]
+) -> tuple[set[int], set[int]]:
+    """Mentioned years that are (older than, newer than) every indexed fiscal year."""
+    if not indexed_years:
+        return set(), set()
+    oldest, newest = min(indexed_years), max(indexed_years)
+    return {year for year in mentioned if year < oldest}, {
+        year for year in mentioned if year > newest
+    }
 
 
 def debug_rows(hits: Sequence[SearchHit]) -> list[dict[str, Any]]:

@@ -14,7 +14,6 @@ import requests
 
 from finrag.config import load_settings
 from finrag.evaluation.financebench import (
-    CIK_FALLBACKS,
     FINANCEBENCH_URL,
     FinanceBenchDoc,
     candidate_filings,
@@ -22,7 +21,7 @@ from finrag.evaluation.financebench import (
     load_questions,
 )
 from finrag.ingest.edgar_client import EdgarClient
-from finrag.ingest.filings import fetch_company_filings, load_ticker_to_cik
+from finrag.ingest.filings import CIK_FALLBACKS, fetch_company_filings, load_ticker_to_cik
 from finrag.ingest.models import FilingRecord
 from finrag.ingest.storage import download_filings, merge_into_manifest, raw_document_path
 from finrag.logging_utils import configure_logging

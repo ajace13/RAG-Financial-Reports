@@ -131,6 +131,23 @@ class OllamaGenerator:
         return answer
 
 
+def unload_model(base_url: str, model: str, timeout: float = 30.0) -> bool:
+    """Ask Ollama to free the model's GPU memory now (keep_alive=0); True if it acknowledged.
+
+    Used before bulk embedding so the two don't fight over a small GPU. The next question
+    reloads the model automatically (a few seconds).
+    """
+    try:
+        response = requests.post(
+            f"{base_url.rstrip('/')}/api/generate",
+            json={"model": model, "keep_alive": 0},
+            timeout=timeout,
+        )
+    except requests.RequestException:
+        return False
+    return response.status_code == 200
+
+
 def list_local_models(base_url: str, timeout: float = 5.0) -> list[str]:
     """Names of models pulled into the local Ollama server (GET /api/tags)."""
     response = requests.get(f"{base_url.rstrip('/')}/api/tags", timeout=timeout)

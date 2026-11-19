@@ -79,8 +79,11 @@ Each phase ends at a reviewable checkpoint.
 | 4 | Embeddings + kNN + RRF | Hybrid vs BM25 measured | `sentence-transformers`, `torch` (CUDA 13.0 build on Windows) | ✅ |
 | 5 | Cross-encoder re-ranking | Rerank gain measured | — | ✅ |
 | 6 | Generation with citations | Answers cite real passages; refuses when unsupported | `anthropic`, `openai` (Ollama via `requests`, no new dep) | ✅ live on Ollama `qwen3:8b` (5/6 spot-check questions correct; thinking off by default) |
-| 7 | Streamlit app (+ on-demand ticker ingest) | End-to-end demo | `streamlit` | ✅ app (filters, cited answers, source highlighting, EDGAR deep links, debug table); ⏳ on-demand ingest |
-| 8 | Polish | README with diagram, ablation table, demo GIF | — |
+| 7 | Streamlit app (+ on-demand ticker ingest) | End-to-end demo | `streamlit` | ✅ app (filters, cited answers, source highlighting, EDGAR deep links, debug table) + background on-demand ingestion (last 5 years or full EDGAR history) |
+| 7b | More document types | 8-K earnings releases (EX-99.1) and proxy statements (DEF 14A) ingestible on request | — | next |
+| 7c | Bulk ingestion | Overnight S&P 500 × 5 years via `scripts/add_ticker.py` (needs ES heap 3–4 GB) | — | planned |
+| 8 | XBRL structured facts | Exact multi-year numbers from SEC company-facts API alongside text retrieval | — | planned |
+| 9 | Polish | README with diagram, ablation table, demo GIF | — | |
 
 ## Edge cases to handle
 

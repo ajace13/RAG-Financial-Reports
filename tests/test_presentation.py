@@ -4,9 +4,11 @@ from finrag.generate.models import Answer, AnswerSegment, Citation, Passage
 from finrag.presentation import (
     answer_markdown,
     escape_markdown,
+    fiscal_years_mentioned,
     passage_link,
     render_passage_html,
     text_fragment_url,
+    years_outside_coverage,
 )
 
 TABLE_PASSAGE = Passage(
@@ -99,3 +101,14 @@ def test_passage_link_targets_cited_table_row_label() -> None:
     directive = unquote(link.split("#:~:text=")[1])
     assert directive.startswith("Purchases of property, plant and")
     assert "|" not in directive
+
+
+def test_fiscal_years_mentioned_and_coverage() -> None:
+    assert fiscal_years_mentioned("Compare FY2018 with fiscal 2012 and 2025; ignore 12345") == {
+        2012,
+        2018,
+        2025,
+    }
+    older, newer = years_outside_coverage({2012, 2018, 2027}, [2023, 2024, 2025, 2018])
+    assert older == {2012} and newer == {2027}
+    assert years_outside_coverage({2012}, []) == (set(), set())

@@ -32,6 +32,16 @@ PERIODIC_FORMS = ANNUAL_FORMS | QUARTERLY_FORMS
 HISTORY_MARGIN = timedelta(days=400)
 
 
+# Companies missing from SEC's *current* ticker map (acquired or renamed). Ingestion logs the
+# EDGAR company name for each CIK so these can be verified.
+CIK_FALLBACKS = {
+    "ATVI": 718877,  # Activision Blizzard (acquired by Microsoft, 2023)
+    "XYZ": 1512673,  # Block, Inc. (formerly Square, ticker SQ)
+    "SQ": 1512673,  # Block's former ticker
+    "FL": 850209,  # Foot Locker
+}
+
+
 @dataclass(frozen=True)
 class CompanyInfo:
     """Company identity and fiscal calendar as reported by EDGAR."""
@@ -46,6 +56,11 @@ def load_ticker_to_cik(client: EdgarClient) -> dict[str, int]:
     """Map current exchange tickers to CIKs using SEC's company_tickers.json."""
     payload = client.get_json(TICKER_MAP_URL)
     return {entry["ticker"].upper(): int(entry["cik_str"]) for entry in payload.values()}
+
+
+def resolve_cik(client: EdgarClient, ticker: str) -> int | None:
+    """CIK for a ticker: SEC's current ticker map first, then known delisted/renamed ones."""
+    return {**CIK_FALLBACKS, **load_ticker_to_cik(client)}.get(ticker.upper())
 
 
 def parse_date(value: str | None) -> date | None:

@@ -16,6 +16,17 @@ class Facets:
     fiscal_years: list[int] = field(default_factory=list)  # newest first
 
 
+def indexed_accessions(client: Elasticsearch, index: str, ticker: str) -> set[str]:
+    """Accession numbers of a ticker's filings already in the index (to skip on re-ingest)."""
+    response = client.search(
+        index=index,
+        size=0,
+        query={"bool": {"filter": [{"term": {"ticker": ticker}}]}},
+        aggs={"accessions": {"terms": {"field": "accession", "size": 10_000}}},
+    )
+    return {bucket["key"] for bucket in response["aggregations"]["accessions"]["buckets"]}
+
+
 def fetch_facets(client: Elasticsearch, index: str, filters: SearchFilters) -> Facets:
     """Aggregate filter values; `filters` scopes them (e.g. years available for chosen tickers)."""
     response = client.search(

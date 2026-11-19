@@ -62,14 +62,6 @@ COMPANY_TICKERS = {
     "WALMART": "WMT",
 }
 
-# Companies missing from SEC's *current* ticker map (acquired or renamed). The ingestion
-# script logs the EDGAR company name for each CIK so these can be verified.
-CIK_FALLBACKS = {
-    "ATVI": 718877,  # Activision Blizzard (acquired by Microsoft, 2023)
-    "XYZ": 1512673,  # Block, Inc. (formerly Square, ticker SQ)
-    "FL": 850209,  # Foot Locker
-}
-
 FORM_BY_DOC_TYPE = {"10K": "10-K", "10Q": "10-Q"}
 
 

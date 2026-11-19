@@ -12,14 +12,18 @@ from finrag.generate.models import GenerationError, Generator
 from finrag.generate.pipeline import QAResult, answer_question
 from finrag.index.client import make_client
 from finrag.index.facets import Facets, fetch_facets
+from finrag.ingest.jobs import IngestJob, IngestJobManager
+from finrag.ingest.service import RECENT_YEARS, IngestRequest, ingest_company
 from finrag.presentation import (
     answer_markdown,
     citation_numbering,
     cited_texts_for,
     debug_rows,
     escape_markdown,
+    fiscal_years_mentioned,
     passage_link,
     render_passage_html,
+    years_outside_coverage,
 )
 from finrag.retrieve.factory import build_retriever
 from finrag.retrieve.models import SearchFilters
@@ -63,11 +67,70 @@ def get_facets(tickers: tuple[str, ...]) -> Facets:
     return fetch_facets(make_client(settings), settings.es_index, SearchFilters(tickers=tickers))
 
 
+@st.cache_resource
+def get_job_manager() -> IngestJobManager:
+    """One background ingestion worker shared by every browser session of this server."""
+    return IngestJobManager(
+        lambda request, report, gpu_lock: ingest_company(load_settings(), request, report, gpu_lock)
+    )
+
+
 def use_example(question: str, tickers: tuple[str, ...]) -> None:
     """Fill in an example and run it on this rerun (one click, no race with the Ask button)."""
     st.session_state["question"] = question
     st.session_state["tickers"] = list(tickers)
     st.session_state["run_example"] = True
+
+
+def queue_ingest(ticker: str, full_history: bool) -> None:
+    ticker = ticker.strip().upper()
+    if ticker:
+        get_job_manager().submit(IngestRequest(ticker=ticker, full_history=full_history))
+
+
+def job_summary(job: IngestJob) -> str:
+    scope = job.request.scope_label
+    if job.status == "failed":
+        return f"{job.request.ticker} ({scope}) failed: {job.error}"
+    result = job.result
+    if result is None:
+        return f"{job.request.ticker} ({scope}) is {job.status}"
+    if result.filings_added == 0:
+        indexed = result.already_indexed
+        return f"{result.ticker} ({scope}) is already up to date ({indexed} filings indexed)."
+    failed = f", {len(result.failed)} failed" if result.failed else ""
+    return (
+        f"Added {result.ticker} — {result.company_name} ({scope}): {result.filings_added} filings, "
+        f"{result.chunks_added:,} passages{failed}."
+    )
+
+
+@st.fragment(run_every=2)
+def ingestion_banner() -> None:
+    """Live status of background indexing; refreshes the whole page when a job finishes."""
+    manager = get_job_manager()
+    finished = manager.finished_count()
+    if st.session_state.setdefault("seen_finished_jobs", finished) != finished:
+        st.session_state["seen_finished_jobs"] = finished
+        get_facets.clear()  # new companies / years appear in the filters
+        st.rerun(scope="app")
+    jobs = manager.snapshot()
+    active = next((job for job in jobs if job.status == "running"), None)
+    queued = [job.request.ticker for job in jobs if job.status == "queued"]
+    if active is not None:
+        progress = active.progress
+        counter = f" — {progress.done:,} / {progress.total:,}" if progress.total else ""
+        st.info(
+            f"Indexing **{active.request.ticker}** ({active.request.scope_label}) in the "
+            "background. You can keep asking questions; they pause briefly only while passages "
+            "are being embedded on the GPU."
+        )
+        st.progress(progress.fraction, text=f"{progress.stage}{counter} {progress.detail}")
+    if queued:
+        st.caption(f"Queued: {', '.join(queued)}")
+    recent = [job for job in jobs if job.finished_at and job.status in ("done", "failed")][:3]
+    for job in recent:
+        (st.error if job.status == "failed" else st.success)(job_summary(job))
 
 
 def render_sidebar(all_companies: dict[str, str]) -> tuple[SearchFilters, str, int, bool]:
@@ -97,10 +160,63 @@ def render_sidebar(all_companies: dict[str, str]) -> tuple[SearchFilters, str, i
             st.caption("No LLM configured; showing retrieved passages only.")
         passage_count = st.slider("Passages given to the model", 3, 12, 8, key="passage_count")
         show_debug = st.toggle("Show retrieval debug table", key="show_debug")
+        render_add_company()
     filters = SearchFilters(
         tickers=tuple(tickers), forms=tuple(forms), fiscal_years=tuple(fiscal_years)
     )
     return filters, provider, passage_count, show_debug
+
+
+def render_add_company() -> None:
+    st.header("Add a company")
+    with st.form("add_company", clear_on_submit=True, border=False):
+        ticker = st.text_input("Ticker", placeholder="e.g. NVDA", max_chars=10)
+        full_history = st.radio(
+            "History",
+            options=[False, True],
+            format_func=lambda full: (
+                "Full EDGAR history (~2001 on, ~5–6 min)"
+                if full
+                else f"Last {RECENT_YEARS} years (~1 min)"
+            ),
+            help="Runs in the background. Already-indexed filings are skipped, so choosing full "
+            "history for an indexed company only fetches the older filings.",
+        )
+        if st.form_submit_button("Fetch and index") and ticker.strip():
+            queue_ingest(ticker, full_history)
+            st.toast(f"Queued {ticker.strip().upper()} for indexing")
+
+
+def render_coverage_hint(question: str, tickers: tuple[str, ...]) -> None:
+    """Offer to fetch filings when the question names years outside the indexed range."""
+    mentioned = fiscal_years_mentioned(question)
+    if not mentioned:
+        return
+    for ticker in tickers:
+        indexed_years = get_facets((ticker,)).fiscal_years
+        older, newer = years_outside_coverage(mentioned, indexed_years)
+        if older:
+            st.info(
+                f"Your question mentions {', '.join(map(str, sorted(older)))}, but {ticker} is "
+                f"only indexed from fiscal {min(indexed_years)}."
+            )
+            st.button(
+                f"Fetch full EDGAR history for {ticker}",
+                key=f"full_history_{ticker}",
+                on_click=queue_ingest,
+                args=(ticker, True),
+            )
+        if newer:
+            st.info(
+                f"Your question mentions {', '.join(map(str, sorted(newer)))}, but {ticker}'s "
+                f"newest indexed fiscal year is {max(indexed_years)}."
+            )
+            st.button(
+                f"Check EDGAR for newer {ticker} filings",
+                key=f"refresh_{ticker}",
+                on_click=queue_ingest,
+                args=(ticker, False),
+            )
 
 
 def render_sources(result: QAResult) -> None:
@@ -161,6 +277,7 @@ def main() -> None:
         return
 
     filters, provider, passage_count, show_debug = render_sidebar(all_companies)
+    ingestion_banner()
 
     st.write("Try:")
     example_columns = st.columns(len(EXAMPLE_QUESTIONS))
@@ -177,17 +294,26 @@ def main() -> None:
     submitted = submitted or st.session_state.pop("run_example", False)
 
     if submitted and question.strip():
+        gpu_lock = get_job_manager().gpu_lock
         try:
             with st.status("Searching filings and drafting an answer...", expanded=False) as status:
-                result = answer_question(
-                    get_retriever(),
-                    get_generator(provider),
-                    question.strip(),
-                    filters,
-                    passage_count,
-                )
+                if not gpu_lock.acquire(blocking=False):
+                    status.update(label="Waiting for background indexing to finish embedding...")
+                    gpu_lock.acquire()
+                    status.update(label="Searching filings and drafting an answer...")
+                try:
+                    result = answer_question(
+                        get_retriever(),
+                        get_generator(provider),
+                        question.strip(),
+                        filters,
+                        passage_count,
+                    )
+                finally:
+                    gpu_lock.release()
                 status.update(label="Done", state="complete")
             st.session_state["result"] = result
+            st.session_state["result_filters"] = filters
         except GenerationError as error:
             st.error(f"The LLM call failed: {error}")
             return
@@ -202,6 +328,8 @@ def main() -> None:
         st.warning("No passages matched. Try removing some filters.")
         return
     render_answer(result)
+    result_filters: SearchFilters = st.session_state.get("result_filters", filters)
+    render_coverage_hint(result.question, result_filters.tickers)
     render_sources(result)
     if show_debug:
         st.subheader("Retrieval debug")
