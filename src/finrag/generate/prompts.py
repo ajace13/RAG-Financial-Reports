@@ -23,7 +23,7 @@ Rules:
 
 CLAUDE_SYSTEM_PROMPT = ANSWER_RULES
 
-OPENAI_SYSTEM_PROMPT = (
+STRUCTURED_SYSTEM_PROMPT = (
     ANSWER_RULES
     + """
 
@@ -31,7 +31,11 @@ Output format: return JSON matching the schema. Split the answer into short clai
 claim that states a fact needs at least one citation giving the passage id (e.g. "P3") and a
 quote copied exactly, character for character, from that passage. Keep quotes short: one
 sentence or one table row. Set "answerable" to false when the passages do not contain the
-answer, and use the claims to explain what is missing (no citations needed for those)."""
+answer, and use the claims to explain what is missing (no citations needed for those).
+
+Example of the shape (values are illustrative):
+{"answerable": true, "claims": [{"text": "Total revenue was $245,122 million in fiscal 2024.",
+"citations": [{"passage_id": "P2", "quote": "Total revenue | $245,122 | $211,915"}]}]}"""
 )
 
 

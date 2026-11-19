@@ -5,11 +5,11 @@ passage-level citations. Filings are pulled from EDGAR, parsed into section-awar
 indexed in Elasticsearch for hybrid BM25 + dense vector retrieval, fused with Reciprocal
 Rank Fusion, and re-ranked with a cross-encoder.
 
-**Stack:** Python · Elasticsearch 9 · Sentence Transformers · Streamlit (Phase 7) · Claude / OpenAI (Phase 6)
+**Stack:** Python · Elasticsearch 9 · Sentence Transformers · Ollama (local LLM; Claude / OpenAI optional) · Streamlit (Phase 7)
 
 > **Status:** Phases 0–6 built (ingestion → parsing → indexing → hybrid retrieval →
 > re-ranking → retrieval evaluation → cited answer generation). Generation is unit-tested
-> but not yet run against a live LLM API. The Streamlit app (Phase 7) is next.
+> but not yet run against a live model. The Streamlit app (Phase 7) is next.
 > See [PLAN.md](PLAN.md).
 
 ## How it works
@@ -24,7 +24,7 @@ EDGAR ─► fetch 10-K/10-Q ─► HTML → text/table blocks ─► Item secti
                                                               ▼
                                            cross-encoder re-rank (bge-reranker-base)
                                                               ▼
-                      Claude (search-result citations) ─┬─ or OpenAI fallback (JSON quotes, verified)
+      Ollama local model or OpenAI (JSON claims + quotes, verified)  │  Claude (native search-result citations)
                                                               ▼
                                   answer with [n] citations → passage + EDGAR source link
 ```
@@ -43,9 +43,12 @@ Design decisions worth knowing:
   similarities, and makes per-retriever ranks available for debugging and ablations.
 - **Citations you can check.** With Claude, each passage is sent as a `search_result` block
   (one block per sentence or table row), so citations come back as exact spans of our own
-  text, pointing at the precise line item. The OpenAI fallback returns JSON claims with
-  quotes, and every quote is checked verbatim against its passage. Unverifiable quotes are
-  flagged, not trusted.
+  text, pointing at the precise line item. Ollama and OpenAI return JSON claims with quotes
+  (schema-constrained), and every quote is checked verbatim against its passage.
+  Unverifiable quotes are flagged, not trusted.
+- **Local-model context window.** Ollama defaults to a 4k-token context on GPUs under 24 GB,
+  which would silently truncate an 8-passage prompt, so every request sets `num_ctx`
+  (default 8192) and answers note when the prompt came close to the limit.
 
 ## Results (retrieval)
 
@@ -117,13 +120,22 @@ uv run python scripts/embed_chunks.py            # embeddings (cached by chunk i
 uv run python scripts/build_index.py --recreate  # load Elasticsearch
 ```
 
-Ask a question (needs `ANTHROPIC_API_KEY` or `OPENAI_API_KEY` in `.env`; with both, Claude
-is used first and OpenAI takes over if Claude fails; with neither, you get the retrieved
-passages only):
+Set up an LLM. The free option is a local model through [Ollama](https://ollama.com), with no
+account or API key:
+
+```bash
+ollama pull qwen3:8b                  # ~5 GB; fits an 8 GB GPU
+# then in .env:  OLLAMA_MODEL=qwen3:8b
+uv run python scripts/check_llm.py    # server up? model pulled? one test answer with citations
+```
+
+Claude (`ANTHROPIC_API_KEY`) and OpenAI (`OPENAI_API_KEY`) also work. With several
+configured, `auto` tries Claude → OpenAI → Ollama and falls through on errors. With none,
+`ask.py` prints the retrieved passages only.
 
 ```bash
 uv run python scripts/ask.py "What was 3M's capital expenditure in FY2018?" --ticker MMM --fiscal-year 2018
-uv run python scripts/ask.py "..." --provider openai     # force a provider: auto|claude|openai|none
+uv run python scripts/ask.py "..." --provider ollama     # force one: auto|claude|openai|ollama|none
 ```
 
 Search and evaluate retrieval:
@@ -146,7 +158,7 @@ src/finrag/
   embedding.py  Sentence-Transformers embedder + on-disk cache
   index/        Elasticsearch client, schema, bulk indexer
   retrieve/     BM25, kNN, RRF fusion, cross-encoder reranker, Retriever
-  generate/     passages, prompts, Claude + OpenAI generators, fallback, QA pipeline
+  generate/     passages, prompts, Claude / OpenAI / Ollama generators, fallback, QA pipeline
   evaluation/   FinanceBench loading, evidence-based relevance, ranking metrics
 scripts/        pipeline entry points (ingest → chunk → embed → index → search/eval)
 tests/          unit tests (default) and live-ES integration tests (-m integration)

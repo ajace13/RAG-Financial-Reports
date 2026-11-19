@@ -7,6 +7,7 @@ from finrag.config import (
     DEFAULT_ES_URL,
     PROJECT_ROOT,
     load_settings,
+    parse_optional_bool,
 )
 
 CONFIG_VARS = (
@@ -21,6 +22,11 @@ CONFIG_VARS = (
     "CLAUDE_EFFORT",
     "OPENAI_API_KEY",
     "OPENAI_MODEL",
+    "OLLAMA_URL",
+    "OLLAMA_MODEL",
+    "OLLAMA_NUM_CTX",
+    "OLLAMA_API_KEY",
+    "OLLAMA_THINK",
 )
 
 
@@ -79,3 +85,28 @@ def test_relative_data_dir_is_anchored_at_repo_root(
 def test_absolute_data_dir_is_kept(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DATA_DIR", str(tmp_path))
     assert load_settings(tmp_path / "missing.env").data_dir == tmp_path
+
+
+def test_ollama_defaults_and_overrides(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    settings = load_settings(tmp_path / "missing.env")
+    assert settings.ollama_model is None
+    assert settings.ollama_url == "http://localhost:11434"
+    assert settings.ollama_num_ctx == 8192
+    assert settings.ollama_think is None
+    monkeypatch.setenv("OLLAMA_MODEL", "qwen3:8b")
+    monkeypatch.setenv("OLLAMA_NUM_CTX", "16384")
+    monkeypatch.setenv("OLLAMA_THINK", "False")
+    settings = load_settings(tmp_path / "missing.env")
+    assert (settings.ollama_model, settings.ollama_num_ctx, settings.ollama_think) == (
+        "qwen3:8b",
+        16384,
+        False,
+    )
+
+
+def test_parse_optional_bool() -> None:
+    assert parse_optional_bool("") is None
+    assert parse_optional_bool("Yes") is True
+    assert parse_optional_bool("0") is False
+    with pytest.raises(ValueError):
+        parse_optional_bool("maybe")

@@ -9,7 +9,7 @@ passage-level citations. Served through Streamlit.
 | Topic | Decision |
 |---|---|
 | Corpus | Demo set: MSFT, AMZN, JPM, PEP, MMM — last 3 years of 10-K + 10-Q. Eval set: every 10-K / 10-Q that the FinanceBench open sample cites. On-demand "enter a ticker → fetch + index" added in Phase 7. |
-| LLM | Behind a `Generator` interface (Phase 6). **Primary:** Claude (`claude-opus-5-5`) via the Anthropic Citations API (needs Console API credits). **Fallback:** OpenAI API (ChatGPT Pro monthly API credits) using structured-output citations + verbatim quote verification. Optional: local model via Ollama for comparison. A retrieval-only mode works with no key at all. |
+| LLM | Behind a `Generator` interface (Phase 6). **Default: local model via Ollama** (free; `qwen3:8b` suggested for 8 GB VRAM) using JSON-schema citations + verbatim quote verification, with `num_ctx` set per request. **Optional:** Claude via search-result citations (needs Console credits) and OpenAI (structured quotes). `auto` chains configured providers Claude → OpenAI → Ollama. Retrieval-only mode works with no LLM at all. |
 | EDGAR access | Hand-rolled client over the free SEC endpoints (`data.sec.gov/submissions`, Archives). No `edgartools`. |
 | Item segmentation | Own parser (Item 1A, 7, 7A, 8, …). Revisit only if it proves too brittle. |
 | Search engine | Elasticsearch 9.x, single node in Docker, security disabled, bound to localhost. |
@@ -78,7 +78,7 @@ Each phase ends at a reviewable checkpoint.
 | 3.5 | Eval set + retrieval metrics (hit@k, MRR, nDCG) | Baseline numbers recorded | — | ✅ FinanceBench |
 | 4 | Embeddings + kNN + RRF | Hybrid vs BM25 measured | `sentence-transformers`, `torch` (CUDA 13.0 build on Windows) | ✅ |
 | 5 | Cross-encoder re-ranking | Rerank gain measured | — | ✅ |
-| 6 | Generation with citations | Answers cite real passages; refuses when unsupported | `anthropic`, `openai` (fallback) | ✅ built + unit-tested; live run needs an API key |
+| 6 | Generation with citations | Answers cite real passages; refuses when unsupported | `anthropic`, `openai` (Ollama via `requests`, no new dep) | ✅ built + unit-tested; live run pending Ollama install |
 | 7 | Streamlit app (+ on-demand ticker ingest) | End-to-end demo | `streamlit` |
 | 8 | Polish | README with diagram, ablation table, demo GIF | — |
 

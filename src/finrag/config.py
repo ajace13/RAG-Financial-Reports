@@ -18,6 +18,10 @@ DEFAULT_RERANKER_MODEL = "BAAI/bge-reranker-base"
 DEFAULT_CLAUDE_MODEL = "claude-opus-5-5"
 DEFAULT_CLAUDE_EFFORT = "high"
 DEFAULT_OPENAI_MODEL = "gpt-6.2-astra"
+DEFAULT_OLLAMA_URL = "http://localhost:11434"
+# 8 passages (~3.5k tokens) + instructions + answer fit comfortably; Ollama's own default
+# (4k on GPUs under 24 GB) would truncate RAG prompts.
+DEFAULT_OLLAMA_NUM_CTX = 8192
 
 
 @dataclass(frozen=True)
@@ -35,6 +39,23 @@ class Settings:
     claude_effort: str
     openai_api_key: str | None
     openai_model: str
+    ollama_url: str
+    ollama_model: str | None
+    ollama_num_ctx: int
+    ollama_api_key: str | None
+    ollama_think: bool | None
+
+
+def parse_optional_bool(raw_value: str) -> bool | None:
+    """'true'/'false' (any case, also 1/0, yes/no) -> bool; empty -> None (use model default)."""
+    value = raw_value.strip().lower()
+    if not value:
+        return None
+    if value in {"true", "1", "yes"}:
+        return True
+    if value in {"false", "0", "no"}:
+        return False
+    raise ValueError(f"expected true/false, got {raw_value!r}")
 
 
 def resolve_data_dir(raw_value: str) -> Path:
@@ -67,4 +88,9 @@ def load_settings(env_file: Path | None = None) -> Settings:
         claude_effort=lookup("CLAUDE_EFFORT", DEFAULT_CLAUDE_EFFORT),
         openai_api_key=lookup("OPENAI_API_KEY", "").strip() or None,
         openai_model=lookup("OPENAI_MODEL", DEFAULT_OPENAI_MODEL),
+        ollama_url=lookup("OLLAMA_URL", DEFAULT_OLLAMA_URL),
+        ollama_model=lookup("OLLAMA_MODEL", "").strip() or None,
+        ollama_num_ctx=int(lookup("OLLAMA_NUM_CTX", str(DEFAULT_OLLAMA_NUM_CTX))),
+        ollama_api_key=lookup("OLLAMA_API_KEY", "").strip() or None,
+        ollama_think=parse_optional_bool(lookup("OLLAMA_THINK", "")),
     )

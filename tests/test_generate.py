@@ -16,8 +16,9 @@ from finrag.generate.claude import ClaudeGenerator, build_user_content
 from finrag.generate.factory import build_generator
 from finrag.generate.fallback import FallbackGenerator
 from finrag.generate.models import Answer, AnswerSegment, GenerationError, Passage
-from finrag.generate.openai_structured import OpenAIGenerator, quote_in_passage
+from finrag.generate.openai_structured import OpenAIGenerator
 from finrag.generate.passages import passage_from_hit, split_into_blocks
+from finrag.generate.structured import quote_in_passage
 from finrag.retrieve.models import SearchHit
 
 TABLE_TEXT = (
@@ -234,7 +235,7 @@ def test_fallback_raises_when_all_fail() -> None:
 
 @pytest.fixture
 def no_llm_keys(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Path:
-    for name in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY"):
+    for name in ("ANTHROPIC_API_KEY", "OPENAI_API_KEY", "OLLAMA_MODEL", "OLLAMA_API_KEY"):
         monkeypatch.delenv(name, raising=False)
     return tmp_path / "missing.env"
 
@@ -255,3 +256,15 @@ def test_factory_chains_claude_then_openai(
     assert isinstance(generator, FallbackGenerator)
     assert generator.provider == "claude+openai"
     assert build_generator(load_settings(no_llm_keys), "openai").provider == "openai"
+
+
+def test_factory_ollama_alone_and_last_in_chain(
+    no_llm_keys: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("OLLAMA_MODEL", "qwen3:8b")
+    assert build_generator(load_settings(no_llm_keys), "auto").provider == "ollama"
+    monkeypatch.setenv("OPENAI_API_KEY", "test-openai")
+    assert build_generator(load_settings(no_llm_keys), "auto").provider == "openai+ollama"
+    monkeypatch.delenv("OLLAMA_MODEL")
+    with pytest.raises(ValueError, match="OLLAMA_MODEL"):
+        build_generator(load_settings(no_llm_keys), "ollama")
