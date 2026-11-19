@@ -5,11 +5,11 @@ passage-level citations. Filings are pulled from EDGAR, parsed into section-awar
 indexed in Elasticsearch for hybrid BM25 + dense vector retrieval, fused with Reciprocal
 Rank Fusion, and re-ranked with a cross-encoder.
 
-**Stack:** Python · Elasticsearch 9 · Sentence Transformers · Ollama (local LLM; Claude / OpenAI optional) · Streamlit (Phase 7)
+**Stack:** Python · Elasticsearch 9 · Sentence Transformers · Ollama (local LLM; Claude / OpenAI optional) · Streamlit
 
-> **Status:** Phases 0–6 built (ingestion → parsing → indexing → hybrid retrieval →
-> re-ranking → retrieval evaluation → cited answer generation with a free local LLM via
-> Ollama). The Streamlit app (Phase 7) is next.
+> **Status:** Phases 0–7 built (ingestion → parsing → indexing → hybrid retrieval →
+> re-ranking → retrieval evaluation → cited answers from a free local LLM → Streamlit app).
+> Next: on-demand ingestion of new tickers from the app, then polish.
 > See [PLAN.md](PLAN.md).
 
 ## How it works
@@ -49,6 +49,11 @@ Design decisions worth knowing:
 - **Local-model context window.** Ollama defaults to a 4k-token context on GPUs under 24 GB,
   which would silently truncate an 8-passage prompt, so every request sets `num_ctx`
   (default 8192) and answers note when the prompt came close to the limit.
+- **Sharing one small GPU.** On an 8 GB card, keeping the embedder and re-ranker on the GPU
+  pushed Ollama into slow shared memory (prompt processing fell from ~2,000 to ~200 tokens/s).
+  `RETRIEVAL_DEVICE=cpu` moves question-time retrieval models to the CPU: re-ranking takes
+  ~5 s longer, but a full answer drops from 60–90 s to ~12 s. On GPU, the re-ranker runs in
+  fp16 and releases its scratch memory after each query.
 
 ## Results (retrieval)
 
@@ -169,6 +174,19 @@ uv run python scripts/ask.py "What was 3M's capital expenditure in FY2018?" --ti
 uv run python scripts/ask.py "..." --provider ollama     # force one: auto|claude|openai|ollama|none
 ```
 
+Run the app:
+
+```bash
+uv run streamlit run app/streamlit_app.py          # http://localhost:8501
+```
+
+The app has company / form / fiscal-year filters (populated from the index), an LLM picker,
+the answer with `[n]` citations, source cards that highlight the cited table row or sentence
+with an "Open in EDGAR" deep link (text fragments, so Chromium browsers scroll to the cited
+text), and an optional retrieval debug table with each passage's BM25 / vector / RRF /
+re-rank position. If your LLM shares a small GPU, set `RETRIEVAL_DEVICE=cpu` (see design
+notes above).
+
 Search and evaluate retrieval:
 
 ```bash
@@ -187,10 +205,12 @@ src/finrag/
   parsing/      HTML → blocks, tables, Item sections, iXBRL dei facts, per-filing pipeline
   chunking.py   section-aware prose/table chunking with context headers
   embedding.py  Sentence-Transformers embedder + on-disk cache
-  index/        Elasticsearch client, schema, bulk indexer
-  retrieve/     BM25, kNN, RRF fusion, cross-encoder reranker, Retriever
+  index/        Elasticsearch client, schema, bulk indexer, filter facets
+  retrieve/     BM25, kNN, RRF fusion, cross-encoder reranker, Retriever + factory
   generate/     passages, prompts, Claude / OpenAI / Ollama generators, fallback, QA pipeline
   evaluation/   FinanceBench loading, evidence-based relevance, ranking metrics
+  presentation.py  app rendering helpers (citations, highlighting, EDGAR deep links)
+app/            Streamlit front end
 scripts/        pipeline entry points (ingest → chunk → embed → index → search/eval)
 tests/          unit tests (default) and live-ES integration tests (-m integration)
 ```

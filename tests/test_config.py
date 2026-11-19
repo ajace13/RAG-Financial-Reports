@@ -7,6 +7,7 @@ from finrag.config import (
     DEFAULT_ES_URL,
     PROJECT_ROOT,
     load_settings,
+    parse_device,
     parse_optional_bool,
 )
 
@@ -17,6 +18,7 @@ CONFIG_VARS = (
     "DATA_DIR",
     "EMBEDDING_MODEL",
     "RERANKER_MODEL",
+    "RETRIEVAL_DEVICE",
     "ANTHROPIC_API_KEY",
     "CLAUDE_MODEL",
     "CLAUDE_EFFORT",
@@ -111,3 +113,12 @@ def test_parse_optional_bool() -> None:
     assert parse_optional_bool("0") is False
     with pytest.raises(ValueError):
         parse_optional_bool("maybe")
+
+
+def test_parse_device() -> None:
+    assert parse_device("auto") is None
+    assert parse_device("") is None
+    assert parse_device("CPU") == "cpu"
+    assert parse_device("cuda:0") == "cuda:0"
+    with pytest.raises(ValueError, match="RETRIEVAL_DEVICE"):
+        parse_device("gpu")

@@ -11,14 +11,11 @@ import argparse
 import textwrap
 
 from finrag.config import load_settings
-from finrag.embedding import Embedder
 from finrag.generate.factory import PROVIDERS, build_generator
 from finrag.generate.models import Answer, GenerationError, Passage
 from finrag.generate.pipeline import answer_question
-from finrag.index.client import make_client
+from finrag.retrieve.factory import build_retriever
 from finrag.retrieve.models import SearchFilters
-from finrag.retrieve.rerank import Reranker
-from finrag.retrieve.retriever import Retriever
 
 
 def parse_args() -> argparse.Namespace:
@@ -77,12 +74,7 @@ def main() -> int:
     args = parse_args()
     settings = load_settings()
     generator = build_generator(settings, args.provider)
-    retriever = Retriever(
-        make_client(settings),
-        settings.es_index,
-        Embedder(settings.embedding_model),
-        Reranker(settings.reranker_model),
-    )
+    retriever = build_retriever(settings)
     filters = SearchFilters(
         tickers=tuple(ticker.upper() for ticker in args.ticker),
         forms=tuple(args.form),

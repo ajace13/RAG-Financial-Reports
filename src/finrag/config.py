@@ -37,6 +37,7 @@ class Settings:
     data_dir: Path
     embedding_model: str
     reranker_model: str
+    retrieval_device: str | None
     anthropic_api_key: str | None
     claude_model: str
     claude_effort: str
@@ -59,6 +60,16 @@ def parse_optional_bool(raw_value: str) -> bool | None:
     if value in {"false", "0", "no"}:
         return False
     raise ValueError(f"expected true/false, got {raw_value!r}")
+
+
+def parse_device(raw_value: str) -> str | None:
+    """'auto' (or empty) -> None so libraries pick CUDA when available; else 'cpu' / 'cuda'."""
+    value = raw_value.strip().lower()
+    if value in {"", "auto"}:
+        return None
+    if value not in {"cpu", "cuda"} and not value.startswith("cuda:"):
+        raise ValueError(f"RETRIEVAL_DEVICE must be auto, cpu, cuda or cuda:N, got {raw_value!r}")
+    return value
 
 
 def resolve_data_dir(raw_value: str) -> Path:
@@ -86,6 +97,7 @@ def load_settings(env_file: Path | None = None) -> Settings:
         data_dir=resolve_data_dir(lookup("DATA_DIR", DEFAULT_DATA_DIR)),
         embedding_model=lookup("EMBEDDING_MODEL", DEFAULT_EMBEDDING_MODEL),
         reranker_model=lookup("RERANKER_MODEL", DEFAULT_RERANKER_MODEL),
+        retrieval_device=parse_device(lookup("RETRIEVAL_DEVICE", "auto")),
         anthropic_api_key=lookup("ANTHROPIC_API_KEY", "").strip() or None,
         claude_model=lookup("CLAUDE_MODEL", DEFAULT_CLAUDE_MODEL),
         claude_effort=lookup("CLAUDE_EFFORT", DEFAULT_CLAUDE_EFFORT),

@@ -19,16 +19,13 @@ from pathlib import Path
 from statistics import mean
 
 from finrag.config import PROJECT_ROOT, load_settings
-from finrag.embedding import Embedder
 from finrag.evaluation.financebench import load_questions
 from finrag.evaluation.metrics import hit_at_k, ndcg_at_k, reciprocal_rank
 from finrag.evaluation.relevance import relevant_chunk_ids
-from finrag.index.client import make_client
 from finrag.index.indexer import iter_chunks
 from finrag.logging_utils import configure_logging
+from finrag.retrieve.factory import build_retriever
 from finrag.retrieve.models import SearchFilters
-from finrag.retrieve.rerank import Reranker
-from finrag.retrieve.retriever import Retriever
 
 logger = logging.getLogger("run_retrieval_eval")
 
@@ -131,12 +128,7 @@ def main() -> int:
         unjudgeable,
     )
 
-    retriever = Retriever(
-        make_client(settings),
-        settings.es_index,
-        Embedder(settings.embedding_model),
-        Reranker(settings.reranker_model),
-    )
+    retriever = build_retriever(settings)
     methods = {
         "bm25": retriever.bm25,
         "vector": retriever.vector,

@@ -8,11 +8,8 @@ import argparse
 import textwrap
 
 from finrag.config import load_settings
-from finrag.embedding import Embedder
-from finrag.index.client import make_client
+from finrag.retrieve.factory import build_retriever
 from finrag.retrieve.models import SearchFilters, SearchHit
-from finrag.retrieve.rerank import Reranker
-from finrag.retrieve.retriever import Retriever
 
 METHODS = ("bm25", "vector", "hybrid", "rerank")
 
@@ -48,13 +45,7 @@ def print_hit(position: int, hit: SearchHit) -> None:
 def main() -> int:
     args = parse_args()
     settings = load_settings()
-    needs_reranker = args.method == "rerank"
-    retriever = Retriever(
-        make_client(settings),
-        settings.es_index,
-        Embedder(settings.embedding_model),
-        Reranker(settings.reranker_model) if needs_reranker else None,
-    )
+    retriever = build_retriever(settings)
     filters = SearchFilters(
         tickers=tuple(ticker.upper() for ticker in args.ticker),
         forms=tuple(args.form),
